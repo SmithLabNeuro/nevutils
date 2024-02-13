@@ -49,8 +49,10 @@ p.addOptional('readInterTrialData',false,@islogical);
 p.addOptional('mode',false,@(x) islogical(x)||strcmp(x,'low')||strcmp(x,'high'));
 p.addOptional('readNS2',false,@islogical);
 p.addOptional('readNS5',false,@islogical);
-p.addOptional('convertEyes',false,@islogical);
-p.addOptional('convertEyesPix',false,@islogical);
+p.addOptional('convertEyes',true,@islogical);
+p.addOptional('convertEyesPix',true,@islogical);
+p.addOptional('readJoystickFlag',false,@islogical);
+p.addOptional('convertJoystick',true,@islogical);
 p.addOptional('nsEpoch',[0 0],@isnumeric);
 p.addOptional('dsEye',30,@isnumeric);
 p.addOptional('dsDiode',1,@isnumeric);
@@ -70,6 +72,8 @@ readNS2 = p.Results.readNS2;
 readNS5 = p.Results.readNS5;
 convertEyes = p.Results.convertEyes;
 convertEyesPix = p.Results.convertEyesPix;
+readJoystickFlag=p.Results.readJoystickFlag;
+convertJoystick = p.Results.convertJoystick;
 nsEpoch = p.Results.nsEpoch;
 dsEye = p.Results.dsEye;
 dsDiode = p.Results.dsDiode;
@@ -229,17 +233,38 @@ if ~isempty(tempdata.text)
     if readNS2
         if ~isempty(ns2data)
             fn2 = ns2data;
-            dat = getNS2Data(dat,fn2,'nsEpoch',nsEpoch);
+            dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag,'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
         else
             if nevreadflag
                 filename = nevfilename;
             end
-            fn2  = replace(filename,'.nev','.ns2');
-            if ~exist(fn2,'file')
-                fprintf('ns2 file does not exist!\n');
+            if iscell(filename)
+                fn2  = cellfun(@(fn) replace(fn,'.nev','.ns2'), filename, 'uni', 0);
+                if any(cellfun(@(fn) ~exist(fn,'file'), fn2))
+                    fprintf('one of the ns2 files does not exist!\n');
+                    readNS2 = true;
+                end
             else
-               dat = getNS2Data(dat,fn2,'nsEpoch',nsEpoch);
+                fn2 = replace(filename,'.nev','.ns2');
+                if ~exist(fn2,'file')
+                    fprintf('ns2 file does not exist!\n');
+                    readNS2 = false;
+                end
             end
+            if readNS2
+                dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag,'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
+                if(readJoystickFlag)
+                    if convertJoystick
+                        for n = 1:length(dat)
+                            posBaselineVolt = 2.5; % left over hard coded from "sampleHallEffectJoystick"
+                            pixBoxLimit = 400; % max pixels in half the screen, constant param
+                            posVolts = dat(n).joystick.trial(1:2,:) ./ 1000;
+                            posPx = (posVolts - posBaselineVolt) ./ posBaselineVolt .* pixBoxLimit;
+                            dat(n).joystick.trial(1:2,:) = posPx;
+                        end
+                    end
+                end
+            end            
         end
     end
 
@@ -256,7 +281,6 @@ if ~isempty(tempdata.text)
         else
             fn5  = replace(filename,'.nev','.ns5');
             if ~exist(fn5,'file')
-                fprintf('ns5 file does not exist!\n');
                 fprintf('ns5 file does not exist!\n');
             end
         end
