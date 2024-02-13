@@ -12,7 +12,7 @@ getJoystick = p.Results.getJoystick;
 fnStartTimes = p.Results.fnStartTimes;
 allowpause = p.Results.allowpause;
 
-LFP_CHAN = [];
+LFP_CHAN = []; % assigned later
 JOYSTICK_CHAN = [10250, 10251]; % x,y
 
 if ~iscell(fn2all)
@@ -33,6 +33,7 @@ else
 end
 
 ns2Samp = double(hdr2.hdr.Fs);
+ns2Chans = str2double(hdr2.hdr.label);
 fprintf('Found %d channels of NS2 data.\n',hdr2.hdr.nChans);
 tind = 1;
 switchFiles = false;
@@ -43,6 +44,7 @@ while tind <= length(dat)
     epochStartTime = dat(tind).time(1) - nsEpoch(1) - datTimeShift;
     epochEndTime = dat(tind).time(2) + nsEpoch(2) - datTimeShift;
     nsEndTime = hdr2.hdr.nSamples / hdr2.hdr.Fs;
+    LFP_CHAN = dat(tind).channels; % which channels to grab from NEV
 
     if epochEndTime > nsEndTime && epochStartTime < nsEndTime
         % this takes care of the file switch happening *within* a trial
@@ -67,26 +69,33 @@ while tind <= length(dat)
         msec = dat(tind).trialcodes(:,3);
         codes = dat(tind).trialcodes(:,2);
         codesamples = round(msec*ns2Samp);
-        chans = str2double(hdr2.hdr.label);
-        
-        if ns2readflag
-            lfp.data = fn2.data(:,round(epochStartTime*ns2Samp):round(epochEndTime*ns2Samp));
-        else
-            lfp = read_nsx(fn2,'begsample',round(epochStartTime*ns2Samp),'endsample',round(epochEndTime*ns2Samp),'allowpause', allowpause);
-        end
 
         % LFP data
-        lfpdata.codesamples = [codes codesamples];
-        lfpdata.trial = lfp.data;
-        lfpdata.startsample = codesamples(1);
-        lfpdata.dataFs = ns2Samp;
-        lfpdata.chan = chans;
+        if getLFP
+            lfpChanIdx = find(ismember(ns2Chans,LFP_CHAN));
+            if ns2readflag
+                lfp.data = fn2.data(:,round(epochStartTime*ns2Samp):round(epochEndTime*ns2Samp));
+            else
+                lfp = read_nsx(fn2,'chanindx',lfpChanIdx,'begsample',round(epochStartTime*ns2Samp),'endsample',round(epochEndTime*ns2Samp),'allowpause', allowpause);
+            end
+            lfpdata.codesamples = [codes codesamples];
+            lfpdata.trial = lfp.data;
+            lfpdata.startsample = codesamples(1);
+            lfpdata.dataFs = ns2Samp;
+            lfpdata.chan = LFP_CHAN;
+        end
 
         % joystick data
         if getJoystick
-            joyChan = chans(ismember(chans,JOYSTICK_CHAN));
-            joydata.chan = joyChan;
-            joydata.trial = lfp.data(ismember(chans,JOYSTICK_CHAN),:);
+            joystickChanIdx = find(ismember(ns2Chans,JOYSTICK_CHAN));
+            if ns2readflag
+                % channels may be off
+                joystick.data = fn2.data(:,round(epochStartTime*ns2Samp):round(epochEndTime*ns2Samp));
+            else
+                joystick = read_nsx(fn2,'chanindx',joystickChanIdx,'begsample',round(epochStartTime*ns2Samp),'endsample',round(epochEndTime*ns2Samp),'allowpause', allowpause);
+            end
+            joydata.chan = JOYSTICK_CHAN;
+            joydata.trial = joystick.data;
             joydata.dataFs = ns2Samp;
             joydata.startsample = codesamples(1);
             joydata.codesamples = [codes codesamples];
@@ -99,7 +108,8 @@ while tind <= length(dat)
             if getJoystick
                 dat(tind).joystick = joydata;
             end
-            dat(tind).nsTime = (0:1:size(lfpdata.trial,2)-1)./ns2Samp - nsEpoch(1);
+            ns2NumSamples = hdr2.hdr.nSamples;
+            dat(tind).nsTime = (0:1:ns2NumSamples-1)./ns2Samp - nsEpoch(1);
         else
             % the trial at a file switch needs its data appended
             if getLFP
@@ -108,7 +118,7 @@ while tind <= length(dat)
             if getJoystick
                 dat(tind).joystick.trial = [dat(tind).joystick.trial joydata.trial];
             end
-            dat(tind).nsTime = [dat(tind).nsTime (dat(tind).nsTime(end) + (1:1:length(lfpdata.trial))./ns2Samp - nsEpoch(1))];
+            dat(tind).nsTime = [dat(tind).nsTime (dat(tind).nsTime(end) + (1:1:ns2NumSamples)./ns2Samp - nsEpoch(1))];
             appendDat = false;
         end
     end
@@ -127,6 +137,7 @@ while tind <= length(dat)
             hdr2.hdr = fn2.hdr;
         end
         ns2Samp = double(hdr2.hdr.Fs);
+        ns2Chans = str2double(hdr2.hdr.label);
         fprintf('Found %d channels of NS2 data.\n',hdr2.hdr.nChans);
         switchFiles = false;
         if extractNsxData
