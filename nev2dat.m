@@ -233,6 +233,7 @@ if ~isempty(tempdata.text)
     if readNS2
         if ~isempty(ns2data)
             fn2 = ns2data;
+%             dat = getNS2Data(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag);
             dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag,'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
         else
             if nevreadflag
@@ -253,6 +254,7 @@ if ~isempty(tempdata.text)
             end
             if readNS2
                 dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag,'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
+%                 dat = getNS2Data(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag);
                 if(readJoystickFlag)
                     if convertJoystick
                         for n = 1:length(dat)

@@ -3,12 +3,14 @@ p = inputParser;
 p.addOptional('nsEpoch',[0 0],@isnumeric);
 p.addOptional('getLFP',false,@islogical);
 p.addOptional('getJoystick',false,@islogical);
+p.addOptional('dsJoystick',10,@isnumeric);
 p.addOptional('fnStartTimes', 0, @isnumeric);
 p.addOptional('allowpause', false, @islogical);
 p.parse(varargin{:});
 nsEpoch = p.Results.nsEpoch;
 getLFP = p.Results.getLFP;
 getJoystick = p.Results.getJoystick;
+downsamplejoystick = p.Results.dsJoystick;
 fnStartTimes = p.Results.fnStartTimes;
 allowpause = p.Results.allowpause;
 
@@ -94,13 +96,15 @@ while tind <= length(dat)
             else
                 joystick = read_nsx(fn2,'chanindx',joystickChanIdx,'begsample',round(epochStartTime*ns2Samp),'endsample',round(epochEndTime*ns2Samp),'allowpause', allowpause);
             end
+            dsJoydata = downsample(joystick.data',downsamplejoystick)'; % downsample to frame rate of screen (factor of 10)
             joydata.chan = JOYSTICK_CHAN;
-            joydata.trial = joystick.data;
-            joydata.dataFs = ns2Samp;
-            joydata.startsample = codesamples(1);
+            joydata.trial = dsJoydata;
+            joydata.dataFs = ns2Samp/downsamplejoystick;
+            joydata.startsample = floor(codesamples(1)/downsamplejoystick);
             joydata.codesamples = [codes codesamples];
         end
-
+        
+        ns2NumSamples = round(epochEndTime*ns2Samp) - round(epochStartTime*ns2Samp);
         if ~appendDat
             if getLFP
                 dat(tind).lfp = lfpdata;
@@ -108,7 +112,6 @@ while tind <= length(dat)
             if getJoystick
                 dat(tind).joystick = joydata;
             end
-            ns2NumSamples = hdr2.hdr.nSamples;
             dat(tind).nsTime = (0:1:ns2NumSamples-1)./ns2Samp - nsEpoch(1);
         else
             % the trial at a file switch needs its data appended
