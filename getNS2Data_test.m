@@ -102,6 +102,7 @@ while tind <= length(dat)
             joydata.dataFs = ns2Samp/downsamplejoystick;
             joydata.startsample = floor(codesamples(1)/downsamplejoystick);
             joydata.codesamples = [codes codesamples];
+	    joydata.codesamples(:,2) = floor(joydata.codesamples(:,2)/downsamplejoystick);
         end
         
         ns2NumSamples = round(epochEndTime*ns2Samp) - round(epochStartTime*ns2Samp);
