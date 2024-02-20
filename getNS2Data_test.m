@@ -45,7 +45,7 @@ extractNsxData = true;
 while tind <= length(dat)
     epochStartTime = dat(tind).time(1) - nsEpoch(1) - datTimeShift;
     epochEndTime = dat(tind).time(2) + nsEpoch(2) - datTimeShift;
-    nsEndTime = hdr2.hdr.nSamples / hdr2.hdr.Fs;
+    nsEndTime = double(hdr2.hdr.nSamples) / double(hdr2.hdr.Fs);
     LFP_CHAN = dat(tind).channels; % which channels to grab from NEV
 
     if epochEndTime > nsEndTime && epochStartTime < nsEndTime
