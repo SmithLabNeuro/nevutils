@@ -257,12 +257,16 @@ if ~isempty(tempdata.text)
 %                 dat = getNS2Data(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag);
                 if(readJoystickFlag)
                     if convertJoystick
+                        mvPer45Degrees = 2500; % From HE specs
                         for n = 1:length(dat)
                             posBaselineVolt = 2.5; % left over hard coded from "sampleHallEffectJoystick"
                             pixBoxLimit = 400; % max pixels in half the screen, constant param
                             posVolts = dat(n).joystick.trial(1:2,:) ./ 1000;
                             posPx = (posVolts - posBaselineVolt) ./ posBaselineVolt .* pixBoxLimit;
                             dat(n).joystick.trial(1:2,:) = posPx;
+                            twistMvs = dat(n).joystick.trial(3,:);
+ 			    twistDeg = (twistMvs - dat(n).params.block.hallEffectZBaseline)/mvPer45Degrees*45;
+	                    dat(n).joystick.trial(3,:) = twistDeg;
                         end
                     end
                 end
