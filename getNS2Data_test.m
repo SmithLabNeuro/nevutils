@@ -15,7 +15,7 @@ fnStartTimes = p.Results.fnStartTimes;
 allowpause = p.Results.allowpause;
 
 LFP_CHAN = []; % assigned later
-JOYSTICK_CHAN = [10250, 10251]; % x,y
+JOYSTICK_CHAN = [10250, 10251, 10252]; % x,y, twist
 
 if ~iscell(fn2all)
     fn2all = {fn2all};
@@ -28,6 +28,7 @@ datTimeShift = fnStartTimes(fnInd);
 
 if ischar(fn2)
     ns2readflag = false;
+    fprintf('\nReading in the NS2 file: %s\n', fn2);
     hdr2 = read_nsx(fn2,'readdata',false);
 else
     ns2readflag = true;
@@ -41,20 +42,22 @@ tind = 1;
 switchFiles = false;
 appendDat = false;
 extractNsxData = true;
-
 while tind <= length(dat)
     epochStartTime = dat(tind).time(1) - nsEpoch(1) - datTimeShift;
     epochEndTime = dat(tind).time(2) + nsEpoch(2) - datTimeShift;
     nsEndTime = double(hdr2.hdr.nSamples) / double(hdr2.hdr.Fs);
     LFP_CHAN = dat(tind).channels; % which channels to grab from NEV
-
+    
     if epochEndTime > nsEndTime && epochStartTime < nsEndTime
         % this takes care of the file switch happening *within* a trial
+        % Sets the epochEndTime as the nsEndTime to read what you can within current NS2 file.
+        fprintf('File Switch occurred within a trial. Epoch Starttime: %f, Epoch Endtime: %f, nsEndTime: %f\n', epochStartTime, epochEndTime, nsEndTime)
         epochEndTime = nsEndTime;
         switchFiles = true;
         extractNsxData = true;
     elseif epochEndTime > nsEndTime && epochStartTime > nsEndTime
         % this handles the file switch happening *between* trials
+        disp('Epoch End time and Epoch Start time happen after this ns2 end time. Switch to subsequent file.')
         switchFiles = true;
         extractNsxData = false;
     else
@@ -66,7 +69,8 @@ while tind <= length(dat)
             epochStartTime = 0;
         end
         if epochEndTime > nsEndTime
-            epochEndTime = nsEndTime;
+           fprintf('Epoch End time is greater than nsEndTime: %f and %f\n', epochEndTime, nsEndTime)
+           epochEndTime = nsEndTime;
         end
         msec = dat(tind).trialcodes(:,3);
         codes = dat(tind).trialcodes(:,2);
@@ -127,22 +131,29 @@ while tind <= length(dat)
         end
     end
 
-    if switchFiles
+    if switchFiles 
         fnInd = fnInd + 1;
-        fn2 = fn2all{fnInd};
-        datTimeShift = fnStartTimes(fnInd);
-        epochStartTime = epochStartTime - datTimeShift;
-        epochEndTime = epochEndTime - datTimeShift;
-        if ischar(fn2)
-            ns2readflag = false;
-            hdr2 = read_nsx(fn2,'readdata',false);
-        else
-            ns2readflag = true;
-            hdr2.hdr = fn2.hdr;
+        % Make sure there is an additional file to index
+        if length(fn2all) >= fnInd
+            fn2 = fn2all{fnInd};
+            datTimeShift = fnStartTimes(fnInd);
+            epochStartTime = epochStartTime - datTimeShift;
+            epochEndTime = epochEndTime - datTimeShift;
+            if ischar(fn2)
+                ns2readflag = false;
+                fprintf('\nReading in the NS2 file: %s\n', fn2);
+                hdr2 = read_nsx(fn2,'readdata',false);
+            else
+                ns2readflag = true;
+                hdr2.hdr = fn2.hdr;
+            end
+            ns2Samp = double(hdr2.hdr.Fs);
+            ns2Chans = str2double(hdr2.hdr.label);
+            fprintf('Found %d channels of NS2 data.\n',hdr2.hdr.nChans);
+	else 
+           % If at end of the dat, allow for loop to terminate.
+           break
         end
-        ns2Samp = double(hdr2.hdr.Fs);
-        ns2Chans = str2double(hdr2.hdr.label);
-        fprintf('Found %d channels of NS2 data.\n',hdr2.hdr.nChans);
         switchFiles = false;
         if extractNsxData
             appendDat = true;

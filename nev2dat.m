@@ -168,7 +168,6 @@ block = 1;
 predatcodes = digcodes(digcodes(:,3)<trialstarts(1),:);
 tempdata.text = char(predatcodes(predatcodes(:,2)>=256 & predatcodes(:,2)<512,2)-256)';
 if ~isempty(tempdata.text)
-
     tempdata = getDatParams(tempdata);
 
     %% Make Struct
@@ -215,7 +214,7 @@ if ~isempty(tempdata.text)
             btdig = bt(bt(:,1)==0,:);
             if sum(find(btdig(:,2)>=256 & btdig(:,2)<512))> 0
                 tempdata.text = char(btdig(btdig(:,2)>=256 & btdig(:,2)<512,2)-256)';
-                tempdata = getDatParams(tempdata);
+		tempdata = getDatParams(tempdata);
                 block = block + 1;
             end
         end
@@ -253,16 +252,24 @@ if ~isempty(tempdata.text)
                 end
             end
             if readNS2
-                dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag,'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
+                dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag, 'dsJoystick', 1, 'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
 %                 dat = getNS2Data(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag);
                 if(readJoystickFlag)
                     if convertJoystick
+                        mvPer45Degrees = 2500; % From HE specs
                         for n = 1:length(dat)
                             posBaselineVolt = 2.5; % left over hard coded from "sampleHallEffectJoystick"
                             pixBoxLimit = 400; % max pixels in half the screen, constant param
-                            posVolts = dat(n).joystick.trial(1:2,:) ./ 1000;
-                            posPx = (posVolts - posBaselineVolt) ./ posBaselineVolt .* pixBoxLimit;
-                            dat(n).joystick.trial(1:2,:) = posPx;
+			    if ~isempty(dat(n).joystick)
+                            	posVolts = dat(n).joystick.trial(1:2,:) ./ 1000;
+                            	posPx = (posVolts - posBaselineVolt) ./ posBaselineVolt .* pixBoxLimit;
+                            	dat(n).joystick.trial(1:2,:) = posPx;
+                            	twistMvs = dat(n).joystick.trial(3,:);
+ 			    	twistDeg = (twistMvs - dat(n).params.block.hallEffectZBaseline)/mvPer45Degrees*45;
+	                    	dat(n).joystick.trial(3,:) = twistDeg;
+			    else
+				fprintf('\nTrial %i has no joystick data\n', n);
+			    end
                         end
                     end
                 end
