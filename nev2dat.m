@@ -51,11 +51,14 @@ p.addOptional('readNS2',false,@islogical);
 p.addOptional('readNS5',false,@islogical);
 p.addOptional('convertEyes',true,@islogical);
 p.addOptional('convertEyesPix',true,@islogical);
+p.addOptional('readLFPFlag',false,@islogical);
+p.addOptional('readRespFlag',false,@islogical);
 p.addOptional('readJoystickFlag',false,@islogical);
 p.addOptional('convertJoystick',true,@islogical);
 p.addOptional('nsEpoch',[0 0],@isnumeric);
 p.addOptional('dsEye',30,@isnumeric);
 p.addOptional('dsDiode',1,@isnumeric);
+p.addOptional('dsJoystick',10,@isnumeric);
 p.addOptional('channelsGrab',1:400, @isnumeric);
 p.addOptional('nevreadflag', false, @islogical);
 p.addOptional('nevfilename', '', @(x) ischar(x) || iscell(x));
@@ -72,9 +75,12 @@ readNS2 = p.Results.readNS2;
 readNS5 = p.Results.readNS5;
 convertEyes = p.Results.convertEyes;
 convertEyesPix = p.Results.convertEyesPix;
+readRespirationFlag=p.Results.readRespFlag;
+readLFPFlag=p.Results.readLFPFlag;
 readJoystickFlag=p.Results.readJoystickFlag;
 convertJoystick = p.Results.convertJoystick;
 nsEpoch = p.Results.nsEpoch;
+dsJoystick = p.Results.dsJoystick;
 dsEye = p.Results.dsEye;
 dsDiode = p.Results.dsDiode;
 channelsGrab = p.Results.channelsGrab;
@@ -214,7 +220,7 @@ if ~isempty(tempdata.text)
             btdig = bt(bt(:,1)==0,:);
             if sum(find(btdig(:,2)>=256 & btdig(:,2)<512))> 0
                 tempdata.text = char(btdig(btdig(:,2)>=256 & btdig(:,2)<512,2)-256)';
-		tempdata = getDatParams(tempdata);
+		        tempdata = getDatParams(tempdata);
                 block = block + 1;
             end
         end
@@ -233,7 +239,8 @@ if ~isempty(tempdata.text)
         if ~isempty(ns2data)
             fn2 = ns2data;
 %             dat = getNS2Data(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag);
-            dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag,'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
+            dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getResp',readRespirationFlag,'getLFP',readLFPFlag,...
+                'getJoystick',readJoystickFlag,'dsJoystick',dsJoystick,'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
         else
             if nevreadflag
                 filename = nevfilename;
@@ -252,7 +259,8 @@ if ~isempty(tempdata.text)
                 end
             end
             if readNS2
-                dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag, 'dsJoystick', 1, 'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
+                dat = getNS2Data_test(dat,fn2,'nsEpoch',nsEpoch,'getResp',readRespirationFlag,'getLFP',readLFPFlag,...
+                    'getJoystick',readJoystickFlag,'dsJoystick',dsJoystick,'fnStartTimes', fnStartTimes,'allowpause',allowNevPause);
 %                 dat = getNS2Data(dat,fn2,'nsEpoch',nsEpoch,'getJoystick',readJoystickFlag);
                 if(readJoystickFlag)
                     if convertJoystick
@@ -260,16 +268,16 @@ if ~isempty(tempdata.text)
                         for n = 1:length(dat)
                             posBaselineVolt = 2.5; % left over hard coded from "sampleHallEffectJoystick"
                             pixBoxLimit = 400; % max pixels in half the screen, constant param
-			    if ~isempty(dat(n).joystick)
+			                if ~isempty(dat(n).joystick)
                             	posVolts = dat(n).joystick.trial(1:2,:) ./ 1000;
                             	posPx = (posVolts - posBaselineVolt) ./ posBaselineVolt .* pixBoxLimit;
                             	dat(n).joystick.trial(1:2,:) = posPx;
                             	twistMvs = dat(n).joystick.trial(3,:);
- 			    	twistDeg = (twistMvs - dat(n).params.block.hallEffectZBaseline)/mvPer45Degrees*45;
-	                    	dat(n).joystick.trial(3,:) = twistDeg;
-			    else
-				fprintf('\nTrial %i has no joystick data\n', n);
-			    end
+ 			    	            twistDeg = (twistMvs - dat(n).params.block.hallEffectZBaseline)/mvPer45Degrees*45;
+	                    	    dat(n).joystick.trial(3,:) = twistDeg;
+			                else
+				                fprintf('\nTrial %i has no joystick data\n', n);
+			                end
                         end
                     end
                 end
@@ -307,7 +315,6 @@ if ~isempty(tempdata.text)
                     else
                         dat(n).eyedata.trial(1:2,:) = eyedeg;
                     end
-                    %end
                 end
             end
         end

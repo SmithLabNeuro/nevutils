@@ -2,6 +2,7 @@ function dat = getNS2Data_test(dat,fn2all,varargin)
 p = inputParser;
 p.addOptional('nsEpoch',[0 0],@isnumeric);
 p.addOptional('getLFP',false,@islogical);
+p.addOptional('getResp',false,@islogical);
 p.addOptional('getJoystick',false,@islogical);
 p.addOptional('dsJoystick',10,@isnumeric);
 p.addOptional('fnStartTimes', 0, @isnumeric);
@@ -9,6 +10,7 @@ p.addOptional('allowpause', false, @islogical);
 p.parse(varargin{:});
 nsEpoch = p.Results.nsEpoch;
 getLFP = p.Results.getLFP;
+getRespiration = p.Results.getResp;
 getJoystick = p.Results.getJoystick;
 downsamplejoystick = p.Results.dsJoystick;
 fnStartTimes = p.Results.fnStartTimes;
@@ -16,6 +18,7 @@ allowpause = p.Results.allowpause;
 
 LFP_CHAN = []; % assigned later
 JOYSTICK_CHAN = [10250, 10251, 10252]; % x,y, twist
+RESP_CHAN = 10245;
 
 if ~iscell(fn2all)
     fn2all = {fn2all};
@@ -106,7 +109,23 @@ while tind <= length(dat)
             joydata.dataFs = ns2Samp/downsamplejoystick;
             joydata.startsample = floor(codesamples(1)/downsamplejoystick);
             joydata.codesamples = [codes codesamples];
-	    joydata.codesamples(:,2) = floor(joydata.codesamples(:,2)/downsamplejoystick);
+	        joydata.codesamples(:,2) = floor(joydata.codesamples(:,2)/downsamplejoystick);
+        end
+
+        % respiration data
+        if getRespiration
+            respChanIdx = find(ismember(ns2Chans,RESP_CHAN));
+            if ns2readflag
+                % channels may be off
+                respiration.data = fn2.data(:,round(epochStartTime*ns2Samp):round(epochEndTime*ns2Samp));
+            else
+                respiration = read_nsx(fn2,'chanindx',respChanIdx,'begsample',round(epochStartTime*ns2Samp),'endsample',round(epochEndTime*ns2Samp),'allowpause', allowpause);
+            end
+            respdata.codesamples = [codes codesamples];
+            respdata.trial = respiration.data;
+            respdata.startsample = codesamples(1);
+            respdata.dataFs = ns2Samp;
+            respdata.chan = RESP_CHAN;
         end
         
         ns2NumSamples = round(epochEndTime*ns2Samp) - round(epochStartTime*ns2Samp);
@@ -117,6 +136,9 @@ while tind <= length(dat)
             if getJoystick
                 dat(tind).joystick = joydata;
             end
+            if getRespiration
+                dat(tind).respiration = respdata;
+            end
             dat(tind).nsTime = (0:1:ns2NumSamples-1)./ns2Samp - nsEpoch(1);
         else
             % the trial at a file switch needs its data appended
@@ -125,6 +147,9 @@ while tind <= length(dat)
             end
             if getJoystick
                 dat(tind).joystick.trial = [dat(tind).joystick.trial joydata.trial];
+            end
+            if getRespiration
+                dat(tind).respiration.trial = [dat(tind).respiration.trial respdata.trial];
             end
             dat(tind).nsTime = [dat(tind).nsTime (dat(tind).nsTime(end) + (1:1:ns2NumSamples)./ns2Samp - nsEpoch(1))];
             appendDat = false;
@@ -150,9 +175,9 @@ while tind <= length(dat)
             ns2Samp = double(hdr2.hdr.Fs);
             ns2Chans = str2double(hdr2.hdr.label);
             fprintf('Found %d channels of NS2 data.\n',hdr2.hdr.nChans);
-	else 
-           % If at end of the dat, allow for loop to terminate.
-           break
+        else 
+            % If at end of the dat, allow for loop to terminate.
+            break
         end
         switchFiles = false;
         if extractNsxData
