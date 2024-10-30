@@ -1,31 +1,35 @@
-function hdr = NEV_displayheader(nevfile)
+function hdr = NEV_displayheader(nevfile,varargin)
 %
 % NEV_displayheader prints out the header information from the NEV file
 %
+p = inputParser;
+p.addOptional('verbose',true,@islogical);
+p.parse(varargin{:});
+VERBOSE = p.Results.verbose;
 
 hdr = struct();
 
 %Header Basic Information
 fid = fopen(nevfile,'r','l');
 hdr.identifier = fscanf(fid,'%8s',1); %File Type Indentifier = 'NEURALEV'
-display(['File Type Identifier: ',hdr.identifier]);
+if VERBOSE, display(['File Type Identifier: ',hdr.identifier]); end
 hdr.fileSpec = fread(fid,2,'uchar'); %File specification major and minor 
 hdr.version = sprintf('%d.%d',hdr.fileSpec(1),hdr.fileSpec(2)); %revision number
-display(['Version: ',hdr.version]);
+if VERBOSE, display(['Version: ',hdr.version]); end
 hdr.fileFormat = fread(fid,2,'uchar'); %File format additional flags
-display(['File Format: ',num2str(hdr.fileFormat(1)),' ',num2str(hdr.fileFormat(2))]);
+if VERBOSE, display(['File Format: ',num2str(hdr.fileFormat(1)),' ',num2str(hdr.fileFormat(2))]); end
 hdr.headerSize = fread(fid,1,'uint32'); 
-display(['Header Size: ',num2str(hdr.headerSize)]);
+if VERBOSE, display(['Header Size: ',num2str(hdr.headerSize)]); end
 %Number of bytes in header (standard  and extended)--index for data
 hdr.dataPacketSize = fread(fid,1,'uint32'); 
-display(['Data Packet Size: ',num2str(hdr.dataPacketSize)]);
+if VERBOSE, display(['Data Packet Size: ',num2str(hdr.dataPacketSize)]); end
 %Number of bytes per data packet (-8bytes for samples per waveform)
 hdr.samplesPerWaveform = (hdr.dataPacketSize-8)/2;
-display(['Samples Per Waveform: ',num2str(hdr.samplesPerWaveform)]);
+if VERBOSE, display(['Samples Per Waveform: ',num2str(hdr.samplesPerWaveform)]); end
 hdr.stampFreq = fread(fid,1,'uint32'); %Frequency of the global clock
-display(['Clock Frequency: ',num2str(hdr.stampFreq)]);
+if VERBOSE, display(['Clock Frequency: ',num2str(hdr.stampFreq)]); end
 hdr.sampleFreq = fread(fid,1,'uint32'); %Sampling Frequency
-display(['Sampling Frequency: ',num2str(hdr.sampleFreq)]);
+if VERBOSE, display(['Sampling Frequency: ',num2str(hdr.sampleFreq)]); end
 
 %Windows SYSTEMTIME
 hdr.time = fread(fid,8,'uint16');
@@ -49,31 +53,33 @@ elseif hdr.dayweek == 6
 end
 hdr.day = hdr.time(4);
 hdr.date = sprintf('%s, %d/%d/%d',hdr.dw,hdr.month,hdr.day,hdr.year);
-disp(hdr.date);
+if VERBOSE, disp(hdr.date); end
 hdr.hour = hdr.time(5);
 hdr.minute = hdr.time(6);
 hdr.second = hdr.time(7);
 hdr.millisec = hdr.time(8);
 hdr.time2 = sprintf('%d:%d:%d.%d',hdr.hour,hdr.minute,hdr.second,hdr.millisec);
-disp(hdr.time2);
+if VERBOSE, disp(hdr.time2); end
 
 %Data Acquisition System and Version
 hdr.application = char(fread(fid,32,'uchar')');
-display(['Data Acquisition System and Version: ',hdr.application]);
+if VERBOSE, display(['Data Acquisition System and Version: ',hdr.application]); end
 
 %Additional Information (and Extended Header Information)
 if ~isempty(strfind(hdr.application,'Trellis'))
     hdr.comments = char(fread(fid,252,'uchar')');
     hdr.nevclockstart = fread(fid,1,'uint32');
-    display(['Comments: ',hdr.comments]);
-    display(['NEV Start Clock Time: ',num2str(hdr.nevclockstart)]);
+    if VERBOSE
+        display(['Comments: ',hdr.comments]);
+        display(['NEV Start Clock Time: ',num2str(hdr.nevclockstart)]);
+    end
 else
     hdr.comments = char(fread(fid,256,'uchar')');
-    display(['Comments: ',hdr.comments]);
+    if VERBOSE, display(['Comments: ',hdr.comments]); end
 end
 
 hdr.nExtHeaders = fread(fid,1,'uint32');
-display(['Number of Extended Headers: ',num2str(hdr.nExtHeaders)]);
+if VERBOSE, display(['Number of Extended Headers: ',num2str(hdr.nExtHeaders)]); end
 
 hdr.ExtHeader = struct();
 % Read the Extended Headers
