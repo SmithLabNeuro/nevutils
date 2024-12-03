@@ -20,6 +20,10 @@ function [dat,hdr] = nev2dat(filename,varargin)
 % '255' code.
 %
 % 'convertEyes' and 'nsEpoch' are valid only when 'readNS5' is true.
+% 
+% 'dsEye': default 30, the factor you'd like to downsample the eye data by. Usually collected at 30kHz so default value will downsample to 1kHz.
+% 
+% 'dsJoystick': default 10, the factor you'd like to downsample the joystick data by. Usually collected at 1kHz so the default will downsample analog joystick data to 100Hz.
 %
 % other examples:
 % [dat] = nev2dat(filename,'readNS2',true)
