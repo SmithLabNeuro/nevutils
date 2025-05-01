@@ -104,18 +104,16 @@ while tind <= length(dat)
                 joystick = read_nsx(fn2,'chanindx',joystickChanIdx,'begsample',round(epochStartTime*ns2Samp),'endsample',round(epochEndTime*ns2Samp),'allowpause', allowpause);
             end
             if ~isempty(joystick.data)
-                dsJoydata = downsample(joystick.data',downsamplejoystick)'; % downsample to fra
-me rate of screen (factor of 10)
-            else
-                disp('Empty joystick data. Did not downsample.')
-                dsJoydata = [];
-            end
-	    joydata.chan = JOYSTICK_CHAN;
-            joydata.trial = dsJoydata;
-            joydata.dataFs = ns2Samp/downsamplejoystick;
-            joydata.startsample = floor(codesamples(1)/downsamplejoystick);
-            joydata.codesamples = [codes codesamples];
-	        joydata.codesamples(:,2) = floor(joydata.codesamples(:,2)/downsamplejoystick);
+                dsJoydata = downsample(joystick.data',downsamplejoystick)'; % downsample to frame rate of screen (factor of 10)
+	        joydata.chan = JOYSTICK_CHAN;
+                joydata.trial = dsJoydata;
+                joydata.dataFs = ns2Samp/downsamplejoystick;
+                joydata.startsample = floor(codesamples(1)/downsamplejoystick);
+                joydata.codesamples = [codes codesamples];
+                joydata.codesamples(:,2) = floor(joydata.codesamples(:,2)/downsamplejoystick);
+	    else
+                joydata = [];
+	    end
         end
 
         % respiration data
